@@ -1,0 +1,129 @@
+# CS341 Lab 2 run config (schema v1)
+#
+# In a config of your own, change only `simulator:`, `controller.app` and
+# `logging:`; everything else is fixed for the lab.
+#
+# Conventions
+# - Under `simulator:`, null turns a process off.
+# - Relative paths are resolved against the repo root.
+# - Units are in key names (_s, _ms, _mbps, _per_s).
+
+version: 1
+seed: 42
+mode: dev
+
+controller:                    # only app: is yours; the rest is fixed
+  host: 127.0.0.1
+  port: 6653
+  app: null                    # team os-ken app, e.g. controller/app.py
+  stats_requests_per_s_per_switch: 1   # fixed kit cap on team stats requests (not a budget);
+  stats_burst_per_switch: 1            # null = no cap
+  bootstrap_timeout_s: 60      # kit.run: bootstrap ends at the team's ready() or after
+                               #   this (simulator.md §1); U is not enforced until then
+
+simulator:                     # every key and its default: docs/kit/simulator.md §7
+                               #   (kit/sim/config.py).
+                               #   Order: defaults < preset < keys set here.
+  preset: null                 # presets/{quiet,evasion,crackdown,surge}.yaml
+  # Uncomment and change any key to override the defaults and the preset. The default
+  # scenario (150 s, about 225 req/s on isp_v2) is:
+  #
+  # duration_s: 150
+  # timeline: null             # ready scenario.jsonl; skips generation
+  # world:
+  #   external_prefixes: 60    # M /24s from 198.18.0.0/15
+  #   exit_weights: {E1: 6, E2: 3, E3: 1}   # exits missing here weigh 1
+  #   orgs: 200                # registrable domains, 1-4 site names each
+  #   sites_per_org: [1, 4]
+  #   targeted_orgs: 0.25      # orgs whose content orders go after
+  #   initially_listed: 0.7    # targeted sites the t = 0 order lists
+  #   initial_listing_bias: 1.0   # popular targets left to later orders
+  #   shared_ip: 0.2           # targeted sites placed on an allowed site's IP
+  #   hosting: {external: 0.7, cache: 0.1, domestic: 0.2}
+  #   ttl_s: {normal: 60, short: 10}       # short: fast-flux sites
+  #   endpoints: {ext_resolver: 2, encrypted_dns: 1}
+  #   endpoints_initially_listed: 0.5
+  # demand:                    # category 3a
+  #   requests_per_s_per_pop: 10.0
+  #   pop_weights: {P1: 2.0, P2: 1.6, P3: 1.6, P4: 1.3, P5: 1.3, P6: 1.2,
+  #                 P17: 0.5, P18: 0.5, P19: 0.4, P20: 0.3}   # missing PoPs weigh 1
+  #   subscribers_per_pop: 200
+  #   popularity: {dist: zipf, s: 1.0, targeted_share: 0.50}   # ~30 % should block
+  #   diurnal: {period_s: 150, amplitude: 0.25}
+  #   flash_crowd: {mean_interval_s: 1000, factor: 5, duration_s: 15,   # per PoP;
+  #                 pop_weights: null}  #   mean interval / weight; missing PoPs weigh 1
+  #   size_bytes: {median: 20000, sigma: 1.0, max: 2000000}   # lognormal response body
+  #   methods: {dns: 0.87, stale_cache: 0.05, direct_ip: 0.03,
+  #             ext_resolver: 0.03, encrypted_dns: 0.02}
+  #   split_host: 0.02
+  #   large_header: 0.02       # request header beyond one MSS
+  # external:                  # category 1
+  #   bgp_change: {mean_interval_s: 15}
+  #   dns_change: {mean_interval_s: 7.5}
+  #   fast_flux: {sites: 2, rotate_s: 7.5, overlap_s: 15}   # overlap = short TTL + 5
+  #   mirror: {mean_interval_s: 22.5, dns_delay_s: 2.5}
+  #   shared_ip_join: {mean_interval_s: 50}
+  # blocklist:                 # category 2
+  #   add: {mean_interval_s: 11.25, entries: {median: 3, sigma: 1.0, max: 40},
+  #         filler: 0.2, prefer_mirrors: 0.6,   # size [min, max] or {median, sigma, max};
+  #         popular_targets: 0.5}   # filler: share of entries that match nothing;
+  #                            #   targets drawn by popularity ** popular_targets
+  #   remove: {mean_interval_s: 75}
+  #   entry_mix: {domain: 0.45, suffix: 0.1, ip: 0.35, endpoint: 0.1}
+  # hosting_customers:         # category 3b
+  #   start_blocked: {mean_interval_s: 75}
+  #   stop: {mean_interval_s: 75}
+  # isp:                       # category 4
+  #   te: {interval_s: 30, notice_s: 5}       # notice not compressed
+  #   failure: {mean_interval_s: null, duration_s: 15}
+  # scripted: []               # [{t: 60, ev: flash_crowd, pop: P3, site: ..., factor: 20}, ...]
+
+logging:
+  out_dir: runs/
+  run_id: auto                 # auto = UTC timestamp
+  format: jsonl                # jsonl | csv
+  sample_interval_s: 1.0       # budget / link-utilization sampling
+  streams:
+    requests: true             # one line per client request (outcomes: simulator.md §5)
+    budgets: true              # K usage per switch, Packet-In rate/drops, U rate
+    links: true                # link utilization
+    controller: true           # kit events (relocations, over-budget, errors)
+
+# Fixed for the lab: do not change anything below.
+
+topology:
+  file: topologies/isp_v2.yaml # the lab topology
+  routing:                     # baseline shortest-path routing (reserved entries)
+    metric: hops               # hops | weight | delay  (weight/delay: per tier)
+    tie_break: link_order      # how equal-cost ties break. link_order = lowest
+                               #   set of link indices wins; deterministic and symmetric
+    priority_base: 1000        # reserved priority = base + prefix length
+  defaults:
+    link_mtu: 1600             # inter-switch links (room for MPLS/VLAN tags);
+                               #   host links stay 1500
+
+pipeline:                      # docs/kit/openflow-surface.md "Pipeline"
+  team_tables: 4               # team tables 0..N-1; all their entries count toward K
+  routing_table: 200           # kit routing table (teams never write to it)
+  hairpin_table: 201           # kit output table after routing: out_port from metadata,
+                               #   IN_PORT when it is the arrival port, TTL - 1 per hop
+  restore_default_miss: true   # when a team delete empties a table's
+                               #   priority-0 slot, the kit re-installs its default miss
+
+budgets:                       # the lab budgets
+  K_per_switch: 30             # entries in team tables 0..N-1 per switch, except the
+                               # free priority-0 match-all slot of each table
+  P_controller_msgs_per_s: 600 # network-wide controller message throughput: Packet-Ins
+                               #   delivered to the team + team packet-outs
+  P_queue_len: 300             # bounded Packet-In queue in front of the team app
+  packet_out_cost: 1
+  Ps_packet_in_per_s_per_switch: 100    # Packet-Ins each switch sends per second
+  Ps_burst_per_switch: 25
+  U_rule_changes_per_s: 60     # network-wide flow-mod add/modify/delete rate
+  U_burst: null                # null = U
+  enforcement:                 # kit enforcement settings (fixed)
+    method: base_layer
+    flow_limit_backstop: true
+    overflow_policy: refuse
+    k_crosscheck_interval_s: 5
+    U_over_budget: reject

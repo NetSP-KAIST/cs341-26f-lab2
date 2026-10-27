@@ -1,0 +1,16 @@
+# quiet: a short, light run for debugging (simulator.md §7). About 40 req/s on
+# isp_v2 for 90 s; no flash crowds, no diurnal swing, no fast flux.
+duration_s: 90
+world: {orgs: 80}
+demand:
+  requests_per_s_per_pop: 2.0
+  subscribers_per_pop: 50
+  diurnal: {period_s: null, amplitude: 0.0}
+  flash_crowd: {mean_interval_s: null}
+external:
+  bgp_change: {mean_interval_s: 30}
+  dns_change: {mean_interval_s: 15}
+  fast_flux: {sites: 0}
+  mirror: {mean_interval_s: 45}
+blocklist:
+  add: {mean_interval_s: 22.5}

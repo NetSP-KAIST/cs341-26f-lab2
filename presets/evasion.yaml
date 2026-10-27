@@ -1,0 +1,17 @@
+# evasion: the content side fights back (simulator.md §7). More fast flux,
+# mirrors, shared addresses, endpoints and bypass methods than the default:
+# about a quarter of requests do not use the internal resolver.
+world:
+  shared_ip: 0.4
+  endpoints: {ext_resolver: 4, encrypted_dns: 3}
+  endpoints_initially_listed: 0.3
+demand:
+  methods: {dns: 0.74, stale_cache: 0.05, direct_ip: 0.06, ext_resolver: 0.08,
+            encrypted_dns: 0.07}
+  split_host: 0.05
+  large_header: 0.05
+external:
+  dns_change: {mean_interval_s: 5}
+  fast_flux: {sites: 6}
+  mirror: {mean_interval_s: 7.5, dns_delay_s: 0}
+  shared_ip_join: {mean_interval_s: 15}

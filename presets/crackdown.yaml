@@ -1,0 +1,15 @@
+# crackdown: large orders against a large targeted world (simulator.md §7).
+# Several hundred entries in force, about half of them addresses; single
+# orders of tens to hundreds of entries.
+world:
+  orgs: 400
+  targeted_orgs: 0.35
+  initially_listed: 0.5
+  hosting: {external: 0.6, cache: 0.1, domestic: 0.3}
+blocklist:
+  add: {mean_interval_s: 15, entries: {median: 20, sigma: 1.2, max: 400}, filler: 0.3}
+  remove: {mean_interval_s: 30}
+  entry_mix: {domain: 0.3, suffix: 0.1, ip: 0.5, endpoint: 0.1}
+hosting_customers:
+  start_blocked: {mean_interval_s: 30}
+  stop: {mean_interval_s: 50}

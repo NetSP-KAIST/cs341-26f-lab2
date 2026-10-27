@@ -1,0 +1,154 @@
+# scenario.hl.yaml: a small hand-written high-level scenario on isp_v2 (simulator.md §8).
+# It compiles with no errors and no warnings:
+#
+#   python -m kit.sim.compile docs/kit/scenario.hl.example.yaml -o scenario.jsonl
+#
+#   config + seed --[kit.sim.write]--> scenario.hl.yaml --[kit.sim.compile]--> scenario.jsonl
+#
+# Random scenarios come from a config instead:
+#
+#   python -m kit.sim.write -c configs/default.yaml -o scenario.hl.yaml
+#
+# Three parts:
+#   world    explicit lists: what exists at t = 0
+#   demand   a model: the compiler samples individual requests from it
+#   events   high-level events at fixed times, plus raw timeline events
+#
+# The compiler adds no randomness except request sampling (seeded by `seed`).
+# Everything the writer drew at random (addresses, exits, which site moves where)
+# is written out in its files.
+
+format: lab2-hl/1
+seed: 42                       # request sampling only
+duration_s: 150
+topology: {name: isp_v2, metric: hops, tie_break: link_order}   # routing params feed TE
+provenance:                    # informational; the compiler ignores it
+  writer: hand-written example
+
+# ---------------------------------------------------------------- world
+world:
+  # External prefixes and their exit at t = 0. PoP and cache prefixes
+  # follow from the topology (fixed address plan, simulator.md §2) and are not
+  # listed. BGP events move only these.
+  external_prefixes:
+    - {cidr: 198.18.0.0/24, exit: E1}
+    - {cidr: 198.18.1.0/24, exit: E2}
+    - {cidr: 198.18.2.0/24, exit: E3}
+    - {cidr: 198.18.3.0/24, exit: E1}
+
+  # Per-PoP DNS views for sites the caches serve: which PoPs each cache answers.
+  # The writer fills in the nearest cache by baseline path. A PoP in no view gets
+  # the default answer (the origin).
+  cache_views:
+    C1: [P1, P2, P3, P5, P6, P9, P13]
+    C2: [P4, P7, P8, P10, P11, P12]
+
+  endpoints:                   # exactly one authoritative_dns; it must be first
+    - {id: auth-dns, kind: authoritative_dns, ip: 198.18.0.53, port: 53}
+    - {id: xres1, kind: ext_resolver, ip: 198.18.1.53, port: 53}
+    - {id: edns1, kind: encrypted_dns, ip: 198.18.2.10, port: 443}
+
+  # Orgs and their sites, in creation order (the order matters for sampling).
+  # hosting: external | cache | domestic; it must agree with the address
+  # (domestic = an address in a PoP's 10.i.0.0/16 that no subscriber uses,
+  # cache = origin external and cache_ips in the caches' 100.64.j.0/24).
+  orgs:
+    - org: portal1.example
+      targeted: false          # "content the government goes after"; drives check E7
+      sites:
+        - {name: www.portal1.example, hosting: external, ip: 198.18.0.17, ttl: 60}
+        - {name: api.portal1.example, hosting: domestic, ip: 10.3.40.17, ttl: 60}    # at P3
+    - org: video2.example
+      targeted: false
+      sites:
+        - name: cdn.video2.example
+          hosting: cache
+          ip: 198.18.1.41                     # origin = default-view answer
+          cache_ips: {C1: 100.64.1.7, C2: 100.64.2.88}
+          ttl: 60
+    - org: stream5.test
+      targeted: true
+      sites:
+        - {name: www.stream5.test, hosting: external, ip: 198.18.0.17, ttl: 60}   # shared IP
+        - {name: m.stream5.test, hosting: external, ip: 198.18.2.200, ttl: 10, flux: true}
+        # Optional per-site keys (defaults shown):
+        #   content: <name>      content identity; mirrors share it (popularity, flash)
+        #   serve: [ip, cache_ips…]   addresses serving it at t = 0
+        #   dns: {ips: [ip], ttl, views from cache_views}  |  null = not published at t = 0
+
+  blocklist:                   # the t = 0 order
+    - {type: domain, value: www.stream5.test}
+    - {type: ip, value: 198.18.2.200}
+    - {type: endpoint, kind: encrypted_dns, ip: 198.18.2.10, port: 443}
+    # sugar (hand-written files): {site: m.stream5.test, by: ip | domain | suffix},
+    #   resolved against the site's state when the order is compiled
+
+# ---------------------------------------------------------------- demand
+demand:
+  subscribers_per_pop: 50
+  # every PoP listed (a missing one gets no requests, warning W9)
+  rate_per_s: {P1: 2.0, P2: 2.0, P3: 4.0, P4: 2.0, P5: 2.0, P6: 2.0, P7: 2.0, P8: 2.0,
+               P9: 2.0, P10: 2.0, P11: 2.0, P12: 2.0, P13: 2.0, P14: 2.0, P15: 2.0,
+               P16: 2.0, P17: 2.0, P18: 2.0, P19: 2.0, P20: 2.0}
+  diurnal: {period_s: null, amplitude: 0.0} # rate x (1 + a sin(2πt/period))
+  popularity:
+    dist: zipf                 # zipf | uniform | weights
+    s: 1.0
+    # contents, rank 1 first; every content should be ranked (W9)
+    ranking: [www.portal1.example, cdn.video2.example, www.stream5.test,
+              api.portal1.example, m.stream5.test]
+    # dist: weights  ->  weights: {www.portal1.example: 3.0, …} instead of ranking
+  methods: {dns: 0.87, stale_cache: 0.05, direct_ip: 0.03, ext_resolver: 0.03,
+            encrypted_dns: 0.02}
+  size_bytes: {median: 20000, sigma: 1.0, max: 2000000}
+  split_host: 0.02
+  large_header: 0.02
+  # Time segments: each overrides fields in [from_s, to_s). Later segments win.
+  # Fields: pops (limit the segment to these PoPs), rate_scale or rate_per_s (a
+  # number or {PoP: rate}), methods, size_bytes (key by key), split_host,
+  # large_header. The diurnal curve still applies on top.
+  segments:
+    - {from_s: 75, to_s: 105, pops: [P3, P4], rate_scale: 1.5,
+       methods: {dns: 0.6, ext_resolver: 0.2, encrypted_dns: 0.2}}
+
+# ---------------------------------------------------------------- events
+# Sorted by t; ties keep file order. `origin` is optional and is copied into
+# every low-level event the item produces (default "hl[<index>]").
+events:
+  - {t: 9.478, ev: bgp_change, prefix: 198.18.3.0/24, to: E3}
+  # dns_change / shared_ip_join / start_blocked: serve the new ip and re-point
+  # DNS now; unserve the old ip after ttl + 5 s (optional: unserve_after_s)
+  - {t: 15.301, ev: dns_change, site: www.portal1.example, ip: 198.18.1.9}
+      # same hosting kind, fresh address
+  - {t: 17.5, ev: fast_flux, site: m.stream5.test, rotate_s: 7.5, overlap_s: 15}
+      # a new address every rotate_s; the old one serves overlap_s longer. Give
+      # ips: [...] (one per rotation) to fix them; without it the compiler picks
+      # fresh external addresses (no randomness, independent of the seed)
+  - {t: 22.0, ev: shared_ip_join, site: api.portal1.example, onto: www.stream5.test}
+      # allowed site moves onto the current address of a site blocked by name;
+      # its hosting becomes the target's
+  - {t: 23.875, ev: mirror, of: www.stream5.test, name: www.stream5-mirror1.example,
+     org: stream5-mirror1.example, ip: 198.18.3.12, dns_delay_s: 5}
+      # new targeted site with the same content: served now, in DNS after the delay
+  - {t: 30.0, ev: te, notice_s: 5}           # applied at t; notice at t - notice_s
+      # weights computed from the demand model unless given: weights: {B1-B2: 3, …}
+  - {t: 35.075, ev: blocklist_order, add: [{type: domain, value: www.stream5-mirror1.example}]}
+  - {t: 37.5, ev: start_blocked, site: www.stream5.test, ip: 10.9.12.140}
+      # targeted site moves to domestic hosting: served in a PoP's /16 (S9)
+  - {t: 45.0, ev: blocklist_order, order_id: gov-7,
+     add: [{site: m.stream5.test, by: domain}, {type: ip, value: 198.18.3.144}],
+     remove: [{type: ip, value: 198.18.2.200}]}
+      # orders list real targets and, often, entries nothing matches (198.18.3.144)
+  - {t: 50.0, ev: flash_crowd, pop: P7, site: www.portal1.example, factor: 10,
+     duration_s: 15}                         # site optional: drawn by popularity
+  - {t: 62.5, ev: stop, site: api.portal1.example}   # unserve all, remove record
+  - {t: 75.0, ev: link_failure, link: B1-B2, duration_s: 15}
+      # a link whose loss splits the network is an error (E12)
+  - {t: 77.5, ev: add_site, org: newshop1.test, targeted: false,
+     site: {name: www.newshop1.test, hosting: domestic, ip: 10.8.31.200, ttl: 60},
+     weight: 0.05}
+      # a site that appears mid-run; weight = its content's popularity weight
+  # Escape hatch: one low-level timeline event, as in simulator.md §3.
+  # It is checked like everything else; a request gets id / expect_ip filled in.
+  - {t: 100.0, raw: {ev: dns_record, op: set, domain: www.portal1.example,
+                     ips: [198.18.1.9], ttl: 15}}

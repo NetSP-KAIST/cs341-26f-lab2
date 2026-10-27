@@ -1,0 +1,11 @@
+# surge: traffic and routing under pressure (simulator.md §7). About 300 req/s
+# on isp_v2, frequent flash crowds, BGP moves and TE, and link failures.
+demand:
+  requests_per_s_per_pop: 12.0
+  diurnal: {amplitude: 0.2}
+  flash_crowd: {mean_interval_s: 250, factor: 4}
+external:
+  bgp_change: {mean_interval_s: 7.5}
+isp:
+  te: {interval_s: 15}
+  failure: {mean_interval_s: 50}

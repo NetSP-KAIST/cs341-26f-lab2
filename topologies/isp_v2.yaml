@@ -1,0 +1,143 @@
+# The lab topology (generated; do not edit). Tier bw / delay: link profile mid.
+# One host per PoP (S<n>): its subscribers and the sites it hosts.
+
+name: isp_v2
+version: 1
+
+defaults:
+  link: {weight: 1}
+  host_link: {bw_mbps: null, delay_ms: null}    # unshaped
+
+tiers:                       # bandwidth, delay (mid); weight unused with metric hops
+  core: {bw_mbps: 200, delay_ms: 5, weight: null}
+  regional: {bw_mbps: 100, delay_ms: 3, weight: null}
+  legacy: {bw_mbps: 30, delay_ms: 8, weight: null}
+  access: {bw_mbps: 20, delay_ms: 1, weight: null}
+  metro: {bw_mbps: 50, delay_ms: 2, weight: null}
+
+addressing:
+  host_pool: 10.0.0.0/16
+  gateway_ip: 10.0.255.254
+  gateway_mac: "02:00:00:00:ff:fe"
+
+switches:
+  - {id: B1, role: backbone}
+  - {id: B2, role: backbone}
+  - {id: B3, role: backbone}
+  - {id: B4, role: backbone}
+  - {id: B5, role: backbone}
+  - {id: B6, role: backbone}
+  - {id: B7, role: backbone}
+  - {id: B8, role: backbone}
+  - {id: B9, role: backbone}
+  - {id: B10, role: backbone}
+  - {id: P1, role: pop}
+  - {id: P2, role: pop}
+  - {id: P3, role: pop}
+  - {id: P4, role: pop}
+  - {id: P5, role: pop}
+  - {id: P6, role: pop}
+  - {id: P7, role: pop}
+  - {id: P8, role: pop}
+  - {id: P9, role: pop}
+  - {id: P10, role: pop}
+  - {id: P11, role: pop}
+  - {id: P12, role: pop}
+  - {id: P13, role: pop}
+  - {id: P14, role: pop}
+  - {id: P15, role: pop}
+  - {id: P16, role: pop}
+  - {id: P17, role: pop}
+  - {id: P18, role: pop}
+  - {id: P19, role: pop}
+  - {id: P20, role: pop}
+
+links:
+  - {a: B1, b: B2, tier: core}
+  - {a: B2, b: B3, tier: core}
+  - {a: B3, b: B4, tier: core}
+  - {a: B4, b: B1, tier: core}
+  - {a: B1, b: B3, tier: core}
+  - {a: B2, b: B5, tier: regional}
+  - {a: B5, b: B6, tier: regional}
+  - {a: B6, b: B3, tier: regional}
+  - {a: B4, b: B7, tier: regional}
+  - {a: B7, b: B8, tier: regional}
+  - {a: B8, b: B1, tier: regional}
+  - {a: B6, b: B9, tier: legacy}
+  - {a: B9, b: B10, tier: legacy}
+  - {a: B10, b: B7, tier: legacy}
+  - {a: P1, b: B1, tier: access}
+  - {a: P1, b: B2, tier: access}
+  - {a: P2, b: B1, tier: access}
+  - {a: P2, b: B2, tier: access}
+  - {a: P3, b: B2, tier: access}
+  - {a: P3, b: B3, tier: access}
+  - {a: P4, b: B3, tier: access}
+  - {a: P4, b: B4, tier: access}
+  - {a: P5, b: B1, tier: access}
+  - {a: P5, b: B4, tier: access}
+  - {a: P6, b: B2, tier: access}
+  - {a: P6, b: B5, tier: access}
+  - {a: P7, b: B5, tier: access}
+  - {a: P7, b: B6, tier: access}
+  - {a: P8, b: B5, tier: access}
+  - {a: P8, b: B6, tier: access}
+  - {a: P9, b: B6, tier: access}
+  - {a: P9, b: B3, tier: access}
+  - {a: P10, b: B4, tier: access}
+  - {a: P10, b: B7, tier: access}
+  - {a: P11, b: B7, tier: access}
+  - {a: P11, b: B8, tier: access}
+  - {a: P12, b: B7, tier: access}
+  - {a: P12, b: B8, tier: access}
+  - {a: P13, b: B8, tier: access}
+  - {a: P13, b: B1, tier: access}
+  - {a: P14, b: B6, tier: access}
+  - {a: P14, b: B9, tier: access}
+  - {a: P15, b: B9, tier: access}
+  - {a: P15, b: B10, tier: access}
+  - {a: P16, b: B10, tier: access}
+  - {a: P16, b: B7, tier: access}
+  - {a: P17, b: B9, tier: access}
+  - {a: P18, b: B10, tier: access}
+  - {a: P19, b: B5, tier: access}
+  - {a: P20, b: P17, tier: legacy}
+  - {a: P1, b: P2, tier: metro}
+  - {a: P7, b: P8, tier: metro}
+  - {a: P11, b: P12, tier: metro}
+  - {a: P6, b: P19, tier: metro}
+  - {a: P14, b: P17, tier: metro}
+  - {a: P15, b: P16, tier: metro}
+  - {a: P4, b: P10, tier: metro}
+
+hosts:
+  - {id: E1, role: server, kind: external_exit, switch: B1}
+  - {id: E2, role: server, kind: external_exit, switch: B3}
+  - {id: E3, role: server, kind: external_exit, switch: B9}
+  - {id: C1, role: server, kind: cache, switch: B2}
+  - {id: C2, role: server, kind: cache, switch: B7}
+  - {id: DNS, role: resolver, kind: internal_resolver, switch: B4, ip: 10.0.0.53}
+  - {id: S1, role: client, kind: pop, switch: P1}
+  - {id: S2, role: client, kind: pop, switch: P2}
+  - {id: S3, role: client, kind: pop, switch: P3}
+  - {id: S4, role: client, kind: pop, switch: P4}
+  - {id: S5, role: client, kind: pop, switch: P5}
+  - {id: S6, role: client, kind: pop, switch: P6}
+  - {id: S7, role: client, kind: pop, switch: P7}
+  - {id: S8, role: client, kind: pop, switch: P8}
+  - {id: S9, role: client, kind: pop, switch: P9}
+  - {id: S10, role: client, kind: pop, switch: P10}
+  - {id: S11, role: client, kind: pop, switch: P11}
+  - {id: S12, role: client, kind: pop, switch: P12}
+  - {id: S13, role: client, kind: pop, switch: P13}
+  - {id: S14, role: client, kind: pop, switch: P14}
+  - {id: S15, role: client, kind: pop, switch: P15}
+  - {id: S16, role: client, kind: pop, switch: P16}
+  - {id: S17, role: client, kind: pop, switch: P17}
+  - {id: S18, role: client, kind: pop, switch: P18}
+  - {id: S19, role: client, kind: pop, switch: P19}
+  - {id: S20, role: client, kind: pop, switch: P20}
+
+# Destination CIDR blocks and their initial locations come from the scenario.
+prefixes: []
